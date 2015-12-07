@@ -1,0 +1,534 @@
+
+************************************Maths**********************************
+1. Primes:
+	
+bool isPrime(int n){
+		
+	if(n<3) return n==2;
+	if((n&1)==0) return false;
+	for(int i=3;i*i<=n;i+=2)
+		if(n%i==0) return false;
+			
+	return true;
+}
+	
+const int _size = 1000001; // 10^6
+bool primes[_size];
+	
+	
+	
+void sieve(int upper){
+    for(int i=2;i<=upper;i++) primes[i]=true;
+    primes[0] = primes[1] = false;
+    int temp;
+    for(int i=2;i*i<=upper;i++)
+    {
+        if(primes[i]){
+            for(int j=i<<1; j<=upper ; j+=i)
+                primes[j] = false;
+        }
+    }
+}
+	
+===========================================================================================================================
+2. GCD/LCM:
+
+// recursive
+long long GCD(long long a, long long b){
+   return b==0? a : GCD(b, a%b);
+}
+
+// iterative
+long long GCD(long long a, long long b){
+	long long r;
+	while(b){
+		r = a%b;
+		a = b;
+		b = r;
+	}
+	return a;
+}
+	
+long long LCM(long long a, long long b){
+    return a*b/GCD(a,b);
+}
+
+
+=======================================================================================================================
+3. Extended Euclidean
+
+// recursive
+pair<long long, pair<long long,long long> > ext_gcd(long long a, long long b){
+	if(b==0){
+		return make_pair(a,make_pair(1,0));
+	}
+	pair<long long, pair<long long,long long> >  tmp = ext_gcd(b,a%b);
+	long long gcd = tmp.first;
+	long long x = tmp.second.first;
+	long long y = tmp.second.second;
+	return make_pair(gcd,make_pair(y,x-a/b*y));
+}
+
+<> Applications:
+	
+a. Solving Diophantine equations: ax + by = c (Extended Euclidean): // there's a solution iff "gcd(a,b)|c"
+	 - first solve: ax0 + by0 = gcd(a,b) >> using extended euclidean
+	 - then x = c/gcd(a,b) * x0 AND y = c/gcd(a,b) * y0;
+	 - there're infinite # of solutions: if (x,y) is a solution then (x + b/gcd *t, y - a/gcd *t), where t is any integer.
+	
+b. Solving: ax == c mod (n) // there's a solution iff "gcd(a,n)|c"
+	- ax + ny = c // the diophantine equation! solve it
+	[Note] there's gcd(a,n) solutions, that's t=0,1,....,(gcd-1)
+
+c. Solving: a1x1 + a2x2 + ........ + anxn = c // there's a solution iff "gcd(a1,a2,...,an)|c"
+	1- first solve: gcd(a1,......,an-1)X + anxn = c // the diophantine equation! solve it
+	2- then solve: a1x1 + a2x2 + ...... + a(n-1)x(n-1) = gcd(a1,....,a(n-1))X // the diophantine equation! solve it
+	3- repeat 2 till end.
+	[Note] Infinite # of solutions.
+	
+d. Solving: a1x1 + a2x2 + ........ + anxn = c mod(n) // there's a solution iff "gcd(a1,a2,.....,an,"n")|c"
+	1- rewrite the eqn: a1x1 + a2x2 + ........ + anxn = c mod(n)
+	2- solve application 'c'
+	
+	If we need 0<=xi<n then we choose the smallest positive representative of classes for both [y],[X] using modular arithmetic.
+
+==================================================================================================================
+
+4. Modular Multiplicative Inverse:(a^-1)
+	- aa^-1 == 1 mod(m)
+	- There's a soluion iff gcd(a,m)=1.
+	
+	i. If m = prime: we can solve using fermat little theorem
+		
+		a^(p-2) = a^-1 mod(p)
+		
+		solution using power method: a^b mod MOD
+		
+		long long power(long long a, long long b, long long MOD){
+			long long res = 1;
+			long long base = a;
+			while(b){
+				if(b&1) 
+					res*=base,res%=Mod;
+				base*=base;
+				base%=Mod;
+				b>>=1;
+			}
+			return res;
+		}
+		
+		>> a^-1 = power(a,p-2,p); // O(log(p-2))
+
+	ii. If m is not prime: Using Euler Theorem
+		a^phi(m-1) == a^-1 mod(m)
+		
+		
+		// Euler Toient(phi) Function
+		long long phi(long long n) {
+			long long res = n;
+			for (long long i = 2; i * i <= n; i++) {
+				if (n % i == 0) {
+					res -= res / i;
+					while (n % i == 0)
+						n /= i;
+				}
+			}
+			if (n > 1)
+				res -= res / n;
+			return res;
+		}
+		
+		>> a^-1 = power(a,phi(m-1),m); O(sqrt(m-1) + log( phi(m-1) ))
+		
+	iii It can be solved using extended euclidean:
+		a*a^-1 == 1 mod (m)
+	or  a*x == 1 mod(m) // Application(b)
+
+	
+[IMP] If we want to compute the inverse of first n numbers: O(n)
+	- for each number a<=n, let q = floor(m/a)
+	- m = q*a + m%a >> take mod m for both sides
+	- m mod m = (q*a + m%a) mod m or
+	- 0 = (q*a + m%a) mod m or
+	- (-q*a)mod m = m%a mod m // because q*a and m%a are the additive inverse of each other (e.g. c mod m + (-c) mod m = 0)
+	- dividing by a*(m%a)
+	- ( -q*a) mod m/a*(m%a) = m%a mod m/a*(m%a)
+	- (-q*a *a^-1 * (m%a)^-1 ) mod m = (m%a * a^-1 * (m%a)^-1) mod m
+	- (- q* (m%a)^-1) mod m - a^-1 mod m //\\
+	
+	vector<int> range_inverse(int n, int m){
+		vector<int> inverse(n+1,0);
+		inverse[1]=1; // 1^-1 = 1 = 1 mod m
+		for(int i=2;i<=n;i++){
+			inverse[i] = (- m/a * inverse[m%a] + m)%m;
+		}
+		return inverse;
+	}
+
+==================================================================================================================
+5. Chinese Remainder Theorem:
+
+- Solving the simultaneous equations:
+	X == x1 mod(m1)
+	X == x2 mod(m2)
+	.	. . . .
+	.	. . . .
+	. 	. . . .
+	X == xn mod(mn)
+	
+	
+long long modInverse(int n, int MOD){
+	return power(n,phi(MOD)-1,MOD);
+}
+
+int mods[10], equations, c[10],S,sol[10];
+long long M=1;
+int x[10];
+
+void computeCs(){
+	for(int i=0;i<equations;i++) M*=mods[i];
+	long long mi;
+	for(int i=0;i<equations;i++){
+		mi = M/mods[i];
+		c[i] = mi * modInverse(mi, mods[i]);
+	}
+}
+
+long long CRT(){
+	computeCs();
+	long long X=0;
+	for(int i=0;i<equations;i++){
+		X = X+ ((c[i]%M)*(x[i]%M))%M;
+	}
+	return X;
+}
+
+==========================================================================
+
+Linear Recurrences:
+
+
+int base[15][15], next_base[15][15], res[15], next_res[15];
+int d, mod, n;
+
+void res_mul() {
+
+	int ans;
+	for (int i = 0; i < n; i++) {
+		ans = 0;
+		for (int k = 0; k < n; k++) {
+			ans = ans + ((base[i][k]%mod) * (res[k]%mod)) % mod;
+			ans %= mod;
+		}
+		next_res[i] = ans%mod;
+	}
+
+	for (int i = 0; i < n; i++)
+		res[i] = next_res[i];
+
+}
+
+void self_mul() {
+
+	int ans;
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			ans = 0;
+			for (int k = 0; k < n; k++) {
+				ans = ans + ((base[i][k]%mod) * (base[k][j]%mod)) % mod;
+				ans %= mod;
+			}
+			next_base[i][j] = ans%mod;
+		}
+	}
+
+	for (int i = 0; i < n; i++)
+		for (int j = 0; j < n; j++)
+			base[i][j] = next_base[i][j];
+
+}
+
+int fast_pow(int p) {
+	for (int i = 1; i < n; i++) {
+		for (int j = 0; j < n; j++)
+			base[i][j] = 0;
+		base[i][i - 1] = 1;
+	}
+	while (p>0) {
+		if (p & 1) {
+			res_mul();
+		}
+		self_mul();
+		p >>= 1;
+	}
+	return res[0];
+}
+
+int main() {
+	int N;
+	scanf("%d%d%d", &n, &N, &mod);
+	while (N || n || mod) {
+		for (int i = 0; i < n; i++)
+			scanf("%d", &base[0][i]),base[0][i]%=mod;
+		for (int i = 1; i <= n; i++)
+			scanf("%d", &res[n-i]),res[n-i]%=mod;
+		if (N <= n)
+			printf("%d\n", res[n - N]);
+		else
+			printf("%d\n", fast_pow(N-n));
+		scanf("%d%d%d", &n, &N, &mod);
+	}
+}
+
+==========================================================================
+
+Didn't read:
+
+For non-prime mod, factor it (142857 = 3^3 * 11 * 13 * 37) and compute C(n,k) mod p^q for each prime factor of the mod using the general Lucas theorem, and combine them using Chinese remainder theorem.
+
+For example, C(234, 44) mod 142857 = 6084, then
+
+C(234, 44) mod 3^3 = 9
+C(234, 44) mod 11 = 1
+C(234, 44) mod 13 = 0
+C(234, 44) mod 37 = 16
+The Chinese Remainder theorem involves finding x such that
+
+x = 9 mod 3^3
+x = 1 mod 11
+x = 0 mod 13
+x = 16 mod 37
+The result is x = 6084.
+
+Example
+
+C(234, 44) mod 3^3
+
+First convert n, k, and n-k to base p
+
+n = 234_10 = 22200_3
+
+k = 44_10 = 1122_3
+
+r = n-k = 190_10 = 21001_3
+
+Next find the number of carries
+
+e[i] = number of carries from i to end
+e   4 3 2 1 0
+        1 1
+r   2 1 0 0 1
+k     1 1 2 2
+n   2 2 2 0 0
+Now create the factorial function needed for general Lucas
+
+def f(n, p):
+    r = 1
+    for i in range(1, n+1):
+        if i % p != 0:
+            r *= i
+    return r
+Since q = 3, you will consider only three digits of the base p representation at a time
+
+So
+
+f(222_3, 3)/[f(210_3, 3) * f(011_3, 3)] *
+f(220_3, 3)/[f(100_3, 3) * f(112_3, 3)] *
+f(200_3, 3)/[f(001_3, 3) * f(122_3, 3)] = 6719344775 / 7
+Now
+
+s = 1 if p = 2 and q >= 3 else -1
+Then
+
+p^e[0] * s * 6719344775 / 7 mod 3^3
+e[0] = 2
+p^e[0] = 3^2 = 9
+s = -1
+p^e[0] * s * 6719344775 = -60474102975
+Now you have
+
+-60474102975 / 7 mod 3^3
+This is a linear congruence and can be solved with
+
+ModularInverse(7, 3^3) = 4
+4 * -60474102975 mod 27 = 9
+Hence C(234, 44) mod 3^3 = 9
+
+==========================================================================
+Set union:
+A | B
+
+Set intersection:
+A & B
+
+Set subtraction:
+A & ~B
+
+Test if set is non-empty:
+A != 0
+
+Test whether element x is in A:
+(A & (1 << x)) != 0
+
+The set containing {0, ..., x - 1}:
+(1 << x) - 1
+
+Put x in A (works even if x is already in A):
+A |= 1 << x;
+
+Remove x from A (works even if x is not in A):
+A &= ~(1 << x);
+
+Set negation:
+((1 << N) - 1) & ~A
+
+Test whether A has exactly one element:
+(A > 0) && (A & (A - 1)) == 0
+
+Remove the smallest element from A:
+A = A & (A - 1)
+
+Remove all but the smallest element from A:
+A = A & ~(A - 1)
+
+Count the number of elements in A:
+// GCC:
+count = __builtin_popcount(A);
+// Java:
+count = Integer.bitCount(A);
+// Portable:
+count = (A & 0x55555555) + ((A >> 1) & 0x55555555);
+count = (count & 0x33333333) + ((count >> 2) & 0x33333333);
+count = (count & 0x0F0F0F0F) + ((count >> 4) & 0x0F0F0F0F);
+count = (count & 0x00FF00FF) + ((count >> 8) & 0x00FF00FF);
+count = (count & 0x0000FFFF) +  (count >> 16);
+
+Get the index of the smallest element in A:
+// GCC:
+low = __builtin_ctz(A);
+// Java:
+low = Integer.numberOfTrailingZeros(A);
+// Portable:
+low = 0;
+lowbit = A & ~(A - 1);
+if ((tmp & 0xAAAAAAAA) != 0) low += 1;
+if ((tmp & 0xCCCCCCCC) != 0) low += 2;
+if ((tmp & 0xF0F0F0F0) != 0) low += 4;
+if ((tmp & 0xFF00FF00) != 0) low += 8;
+if ((tmp & 0xFFFF0000) != 0) low += 16;
+
+=================================================================================
+
+Others:
+
+Catalan Numbers: Phi(k=2:n) (n+k)/k, 1, 1, 2, 5, 14, 42, 132, 429, 1430, 4862, 16796, 58786, 208012,
+ 742900, 2674440, 9694845, 35357670, 129644790, 477638700, 1767263190, 6564120420, 24466267020,
+ 91482563640, 343059613650, 1289904147324, 4861946401452
+
+Sum i*x^i = (N*x^(N+1) - (N+1)*x^N + 1)/ (x-1)^2
+
+Arithmetic Sequence: sum = n*(a1+an)/2, Multiplication = n!/(a1-1)! 
+
+Geometric Sequence: sum = a1* (r^n - 1) / (r-1)
+
+Sum i^2 = n*(n+1)*(2n+1)/6 + n^3/3 + n^2/2 + n/6
+
+Sum i^3 = n^4/4 + n^3/2 + n^2/4
+
+Sum i^4 = n^5/5 + n^4/2 + n^3/3 + n/30
+
+Sum i^5 = (1/6)n^6 + (1/2)n^5 + (5/12)n^4 - (1/12)n^2
+
+Sum i^6 =  (1/7)n^7 + (1/2)n^6 + (1/2)n^5 - (1/6)n^3 + (1/42)n
+
+Sum i^7 = (1/8)n^8 + (1/2)n^7 + (7/12)n^6 - (7/24)n^4 + (1/12)n^2
+
+Sum i^8 = (1/9)n^9 + (1/2)n^8 + (2/3)n^7 - (7/15)n^5 + (2/9)n^3 - (1/30)n
+
+Sum i^9 = (1/10)n^10 + (1/2)n^9 + (3/4)n^8 - (7/10)n^6 + (1/2)n^4 - (3/20)n^2
+
+Sum i^10 = (1/11)n^11 + (1/2)n^10 + (5/6)n^9 - n^7 + n^5 - (1/2)n^3 + (5/66)n
+
+===============================================================================
+
+Sum[i=1:n] x^i:
+
+/*
+    (a^exp)%mod.
+*/
+ll power(int a, ll exp, int mod)
+{
+    if(!exp) return 1%mod;
+    ll res = 1LL;
+    ll base = (1LL*a)%mod;
+
+    while(exp)
+    {
+        if(exp&1) res = (res*base)%mod;
+        base = (base*base)%mod;
+        exp>>=1;
+    }
+    return res%mod;
+}
+ll sum_power(int x, ll n, int mod)
+{
+    if(n<2) return n;
+    ll temp = n>>1;
+
+    if(n&1)
+    {
+        return ( power(x,n-1,mod)+(( sum_power(x,temp,mod)%mod )*( ( 1+power(x,temp,mod) )%mod) )%mod) %mod;
+    }
+    return ((sum_power(x,temp,mod)%mod)*(( 1+power(x,temp,mod) )%mod) )%mod;
+}
+
+
+
+
+=============================================================================================
+
+Gauss Elimination:
+
+
+
+// Gauss Elimination
+
+double A[100][101];
+double sol[100];
+int n;
+
+bool GaussElim(){
+	
+	double pivot,scale;
+	for(int i=0;i<n;i++){
+		if (A[i][i] == 0.0) {
+			int p;
+			for (p = i + 1; p < n; p++)
+				if (A[p][i] != 0.0)
+					break;
+			if (p == n)
+				return false;
+			for (int j = i; j <= n; j++)
+				swap(A[i][j], A[p][j]);
+
+		}
+		pivot = A[i][i];
+		for(int j=i+1;j<n;j++){
+			scale = - A[j][i]/pivot;
+			for(int k=i;k<=n;k++){
+				A[j][k] += (scale*A[i][k]);
+			}
+		}
+		
+	}
+	
+	double res;
+	for(int i = n-1 ;i>=0;i--){
+		res= A[i][n];
+		for(int j=i+1;j<n;j++){
+			res -= (sol[j]*A[i][j]);
+		}
+		sol[i] = res / A[i][i];
+	}
+	return true;
+}
