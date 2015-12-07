@@ -11,15 +11,15 @@ public class Packet implements Serializable {
     private short len;
     private int seqno;
 
-    private char [] data;
+    private byte [] data;
 
-    public Packet(short len, int seqno, char[] data){
+    public Packet(short len, int seqno, byte[] data){
         this.len = len;
         this.seqno = seqno;
         this.data = data;
     }
 
-    public Packet(short len, int seqno, short cksum, char[] data){
+    public Packet(short len, int seqno, short cksum, byte[] data){
         this.cksum = cksum;
         this.len = len;
         this.seqno = seqno;
@@ -31,7 +31,7 @@ public class Packet implements Serializable {
         this.cksum = cksum;
     }
 
-    public void setData(char[] data) {
+    public void setData(byte[] data) {
         this.data = data;
     }
 
@@ -43,7 +43,7 @@ public class Packet implements Serializable {
         this.seqno = seqno;
     }
 
-    public char[] getData() {
+    public byte[] getData() {
         return data;
     }
 

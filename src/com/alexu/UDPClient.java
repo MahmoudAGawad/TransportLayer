@@ -21,7 +21,7 @@ public class UDPClient
         // 1. send the file request.
 
         String fileName = inFromUser.readLine();
-        Packet dataPacket = new Packet((short)fileName.length(), 0, fileName.toCharArray());
+        Packet dataPacket = new Packet((short)fileName.length(), 0, fileName.getBytes());
         sendData = Serializer.serialize(dataPacket);
 
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, 9875);
@@ -30,7 +30,7 @@ public class UDPClient
 
         // 2. begin receiving the file
 
-        PrintWriter writer = new PrintWriter(new FileWriter("receive.txt"));
+        OutputStream writer = new FileOutputStream("receive.txt");
         String data = "";
         do{
             // 1. receive the data

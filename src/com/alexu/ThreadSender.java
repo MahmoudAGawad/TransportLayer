@@ -9,6 +9,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.util.Arrays;
 
 /**
  * Created by Mahmoud A.Gawad on 06/12/2015.
@@ -45,20 +46,23 @@ public class ThreadSender extends Thread {
             e.printStackTrace();
         }
 
-        BufferedReader reader = null;
+        InputStream reader = null;
         try {
             System.out.println(fileName);
-            reader = new BufferedReader(new FileReader(fileName));
+            reader = new FileInputStream(fileName);
             int len = 1024;
             int actuallyRead;
             int seqno = 0;
 
-            char[] chunk = new char[len];
+            byte[] chunk = new byte[len];
             byte[] receiveAck = new byte[1024];
 
             while ((actuallyRead = reader.read(chunk, 0, len)) != -1) {
                 System.out.println(actuallyRead + " " + new String(chunk));
-                Packet toSendPacket = new Packet((short) actuallyRead, seqno, chunk);
+
+                byte [] actualData = Arrays.copyOf(chunk, actuallyRead);
+
+                Packet toSendPacket = new Packet((short) actuallyRead, seqno, actualData);
                 byte[] toSendBytes = Serializer.serialize(toSendPacket);
 
                 DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
@@ -76,17 +80,16 @@ public class ThreadSender extends Thread {
                 }
 
                 seqno = 1 - seqno;
-                chunk = new char[len];
             }
 
             // file sent; notify the client
-            Packet toSendPacket = new Packet((short) 6, 0, "ok 200".toCharArray());
+            Packet toSendPacket = new Packet((short) 6, 0, "ok 200".getBytes());
             byte[] toSendBytes = Serializer.serialize(toSendPacket);
             DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
             childServerSocket.send(sendPacket);
 
         } catch (FileNotFoundException e) {
-            Packet toSendPacket = new Packet((short) 6, 0, "no 404".toCharArray());
+            Packet toSendPacket = new Packet((short) 6, 0, "no 404".getBytes());
             byte[] toSendBytes = new byte[0];
             try {
                 toSendBytes = Serializer.serialize(toSendPacket);
