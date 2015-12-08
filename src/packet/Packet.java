@@ -2,6 +2,8 @@ package packet;
 
 import java.io.*;
 
+import utils.CheckSumCalculator;
+
 /**
  * Created by Mahmoud A.Gawad on 06/12/2015.
  */
@@ -14,18 +16,26 @@ public class Packet implements Serializable {
     private byte [] data;
 
     public Packet(short len, int seqno, byte[] data){
+    	
         this.len = len;
         this.seqno = seqno;
         this.data = data;
+        cksum = CheckSumCalculator.calculateCheckSumWithParam(len,seqno,data);
+        
     }
 
     public Packet(short len, int seqno, short cksum, byte[] data){
-        this.cksum = cksum;
-        this.len = len;
+        
+    	this.len = len;
         this.seqno = seqno;
         this.data = data;
+        this.cksum = CheckSumCalculator.calculateCheckSumWithParam(len,seqno,data);
+        
     }
 
+   
+    
+    
 
     public void setCksum(short cksum) {
         this.cksum = cksum;

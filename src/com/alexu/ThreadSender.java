@@ -2,6 +2,7 @@ package com.alexu;
 
 import packet.AckPacket;
 import packet.Packet;
+import utils.CheckSumCalculator;
 import utils.Serializer;
 
 import java.io.*;
@@ -32,6 +33,7 @@ public class ThreadSender extends Thread {
         try {
             Packet dataPacket = (Packet) Serializer.deserialize(requestPacket.getData());
             fileName = new String(dataPacket.getData());
+        
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
@@ -63,6 +65,10 @@ public class ThreadSender extends Thread {
                 byte [] actualData = Arrays.copyOf(chunk, actuallyRead);
 
                 Packet toSendPacket = new Packet((short) actuallyRead, seqno, actualData);
+                
+                // to test if we sent wrong check sum, we can send any short random number
+              //  toSendPacket.setCksum((short)34);
+                
                 byte[] toSendBytes = Serializer.serialize(toSendPacket);
 
                 DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);

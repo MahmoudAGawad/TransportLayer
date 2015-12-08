@@ -2,6 +2,7 @@ package com.alexu;
 
 import packet.AckPacket;
 import packet.Packet;
+import utils.CheckSumCalculator;
 import utils.Serializer;
 
 import java.io.*;
@@ -38,10 +39,16 @@ public class UDPClient
             clientSocket.receive(receivePacket);
             dataPacket = (Packet) Serializer.deserialize(receivePacket.getData());
             data = new String(dataPacket.getData());
-
+           // checking CheckSum
+            short calculatedCheckSum=CheckSumCalculator.calculateCheckSumWithParam(dataPacket.getLen(), dataPacket.getSeqno(), dataPacket.getData());
+            short arrivedCheckSum=dataPacket.getCksum();
+            boolean checkSumIsEqual= calculatedCheckSum==arrivedCheckSum;                     
+            
             if(data.equals("ok 200") || data.equals("no 404")){
                 break;
             }
+            // checking CheckSum
+            if(checkSumIsEqual){	
             writer.write(dataPacket.getData());
 
             // 2. send the ack
@@ -49,7 +56,12 @@ public class UDPClient
             byte[] toSendBytes = Serializer.serialize(ackPacket);
             sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, receivePacket.getAddress(), receivePacket.getPort());
             clientSocket.send(sendPacket);
-
+            				   }
+            else{
+            	System.out.println("check sum is wrong");
+            }
+            
+            
         }while(true);
 
         writer.close();

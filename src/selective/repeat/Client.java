@@ -6,6 +6,7 @@ package selective.repeat;
 
 import packet.AckPacket;
 import packet.Packet;
+import utils.CheckSumCalculator;
 import utils.Serializer;
 
 import java.io.*;
@@ -34,7 +35,7 @@ public class Client {
         recvBase = 0;
     }
     public static void main(String args[]) throws Exception,  IOException {
-        writer = new FileOutputStream("receive4.jpeg");
+        writer = new FileOutputStream("receivedd.txt");
         winSize = 20;
         window = new LinkedList<>();
         for (int i = 0; i < winSize; i++) {
@@ -48,7 +49,7 @@ public class Client {
         byte[] sendData = new byte[1024];
         byte[] receiveData = new byte[3024];
         /* Sending FileName to the server */
-        String sentence = "send4.jpeg";
+        String sentence = "actxml.txt";
         byte[] fileName = sentence.getBytes();
         // create new dataPacket and serialize it
         Packet dataPacket = new Packet((short) fileName.length, 0, fileName);
@@ -87,6 +88,14 @@ public class Client {
             Packet recvData = (Packet) is.readObject();
 
             is.close();
+            
+            
+            // checking CheckSum
+            short calculatedCheckSum=CheckSumCalculator.calculateCheckSumWithParam(recvData.getLen(), recvData.getSeqno(), recvData.getData());
+            short arrivedCheckSum=recvData.getCksum();
+            boolean checkSumIsEqual= calculatedCheckSum==arrivedCheckSum;                     
+          
+             if(checkSumIsEqual){  
 			/*------------------------------------------------------*/
 
 			/* The main functionality of selective repeat(extracting info.) */
@@ -107,7 +116,9 @@ public class Client {
 
             }
 //            System.out.println(index +  "\t\t" + seqNum);
+            
             sendACK(seqNum, portNum);
+            
             if (index == 0) {
                 window.set(index, recvData);
                 /* Writing to file and updating recvBase */
@@ -121,6 +132,11 @@ public class Client {
                 window.set(index, recvData);
             }
 
+        }
+             else{
+            	            	            	 
+            	 System.out.println("check sum is wrong");
+             }
         }
         writer.close();
     }

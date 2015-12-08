@@ -2,6 +2,7 @@ package selective.repeat;
 
 import packet.Packet;
 import packet.WindowNode;
+import utils.CheckSumCalculator;
 import utils.Serializer;
 
 import java.io.*;
@@ -60,7 +61,7 @@ public class ThreadSender extends Thread {
             int len = 500;
             int actuallyRead;
             int seqno = 0;
-
+            int counterToCheckSum=0;
             byte[] chunk = new byte[len];
 
             while(true){
@@ -74,18 +75,34 @@ public class ThreadSender extends Thread {
 
                     System.out.println(actuallyRead);
                     Packet packet = new Packet((short)actuallyRead, seqno, chunk);
-                    byte[] toSendBytes = Serializer.serialize(packet);
-                    DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
-
+               
+                    
+                    //checking checkSum 1
+                   // packet.setCksum((short)34);
+                    
+                    final byte[] toSendBytes = Serializer.serialize(packet);
+                    final DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
+                    
                     WindowNode node = new WindowNode(packet, false);
                     // syncronized
                     window.add(node);
                     // synchronized
 
+                  //checking checkSum 2
+                  //  packet.setCksum(CheckSumCalculator.calculateCheckSumWithParam(packet.getLen(), packet.getSeqno(), packet.getData()));
+                  //  final byte[] toSendBytes1 = Serializer.serialize(packet);
+                    
                     node.getTimer().scheduleAtFixedRate(new TimerTask() {
                         @Override
                         public void run() {
+                        	                       	
                             doAction(sendPacket);
+                       
+                          //checking checkSum last
+                          // return the packet to the correct value
+                          //   sendPacket.setData(toSendBytes1);
+                          //  sendPacket.setLength(toSendBytes1.length);
+                        
                         }
 
                     }, 0 , 2000);
