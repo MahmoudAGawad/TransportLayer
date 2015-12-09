@@ -3,6 +3,8 @@ package selective.repeat;
 import com.alexu.*;
 import packet.WindowNode;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.util.LinkedList;
@@ -14,22 +16,40 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class Server {
 
-    final static int MAX_WINDOW_SIZE = 10;
+
 
     public static void main(String args[]) throws Exception {
-        DatagramSocket serverSocket = new DatagramSocket(9875);
+
+
+        BufferedReader k = new BufferedReader(new FileReader("server.in"));
+
+        int serverPortNum = Integer.parseInt(k.readLine());
+        int windowSize = Integer.parseInt(k.readLine());
+        int seed = Integer.parseInt(k.readLine());
+
+        double probability = Double.parseDouble(k.readLine());
+
+        k.close();
+
+        DatagramSocket serverSocket = new DatagramSocket(serverPortNum);
+
         byte[] receiveData = new byte[3024];
-//        while (true) {
+
+        while (true) {
+
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
             serverSocket.receive(receivePacket);
 
 
+
+            CongestionControl congestionControl = new CongestionControl();
+
             ConcurrentLinkedQueue<WindowNode> window = new ConcurrentLinkedQueue<>();
-            DatagramSocket socket = new DatagramSocket(9874);
+            DatagramSocket socket = new DatagramSocket();
             Test stop = new Test();
             stop.flag = false;
-            new ThreadSender(receivePacket, window, MAX_WINDOW_SIZE, socket, stop).start();
-            new ThreadReceiver(receivePacket, window, MAX_WINDOW_SIZE, socket, stop).start();
-//        }
+            new ThreadSender(receivePacket, window, windowSize, socket, stop, congestionControl, seed, probability).start();
+            new ThreadReceiver(receivePacket, window, windowSize, socket, stop, congestionControl).start();
+        }
     }
 }

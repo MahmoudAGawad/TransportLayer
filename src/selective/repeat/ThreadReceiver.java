@@ -30,14 +30,18 @@ public class ThreadReceiver extends Thread {
 	private Test done;
 	private DatagramSocket childReceiverServerSocket;
 
+	private CongestionControl congestionControl;
+
 	public ThreadReceiver(DatagramPacket receivePacket,
-			ConcurrentLinkedQueue<WindowNode> window, int windowSize,
-			DatagramSocket socket, Test stop) {
+						  ConcurrentLinkedQueue<WindowNode> window, int windowSize,
+						  DatagramSocket socket, Test stop, CongestionControl congestionControl) {
 		this.window = window;
 		this.maxWindowSize = windowSize;
 		this.childReceiverServerSocket = socket;
 		this.packet = receivePacket;
 		this.done = stop;
+
+        this.congestionControl = congestionControl;
 	}
 
 	@Override
@@ -46,17 +50,20 @@ public class ThreadReceiver extends Thread {
 		byte[] receiveAck = new byte[3048];
 		try {
 
-			while (!done.flag && !window.isEmpty()) {
+			while (!done.flag || !window.isEmpty()) {
 
 				DatagramPacket receivePacket = new DatagramPacket(receiveAck,
 						receiveAck.length);
-				childReceiverServerSocket.receive(receivePacket);
+
+                System.out.println("Receiving Acknowledgement...");
+
+                childReceiverServerSocket.receive(receivePacket);
 
 				AckPacket ackPacket = (AckPacket) Serializer
 						.deserialize(receivePacket.getData());
 				// get the Ack no from the data Packet
 				int ackno = ackPacket.getAckno();
-				// System.out.println(ackno);
+				 System.out.println("Ack. number = " + ackno);
 
 				synchronized(this) {
 					// get the Seqno of the Latest packet in the window. which
@@ -72,7 +79,44 @@ public class ThreadReceiver extends Thread {
 						for (int i = 0; i < index; i++) {
 							it.next();
 						}
-						it.next().ackReceived();
+
+                        WindowNode curNode = it.next();
+
+                        if (index > 0) { // duplicate ack!
+
+                            if (congestionControl.getState() == CongestionControl.FAST_RECOVERY) {
+                                congestionControl.setCwnd(congestionControl
+                                        .getCwnd() + 1);
+                            } else {
+                                congestionControl.updateAckCount();
+                                if (congestionControl.getAckCount() == 3) {
+                                    congestionControl.moveToFastRecovery();
+                                }
+                            }
+
+                        } else { // new ack. for BASE!
+
+                            if (congestionControl.getState() == CongestionControl.SLOW_START) {
+
+                                congestionControl.setCwnd(congestionControl
+                                        .getCwnd() + 1);
+                                congestionControl.setAckCount(0);
+
+                            } else if (congestionControl.getState() == CongestionControl.CONGESTION_AVOIDANCE) {
+                                congestionControl.updateAvoidanceNewAck();
+                            } else {
+                                congestionControl.moveToCongestionAvoidance();
+                            }
+
+                        }
+
+                        if (congestionControl.getState() == CongestionControl.SLOW_START
+                                && congestionControl.getCwnd() >= congestionControl
+                                .getSsthreshold()) {
+                            congestionControl.moveToCongestionAvoidance();
+                        }
+
+						curNode.ackReceived();
 
 						// loop over the window, and remove all the Ack packet
 						while (!window.isEmpty() && window.peek().isAck()) {
@@ -80,7 +124,7 @@ public class ThreadReceiver extends Thread {
 							window.poll();
 						}
 
-						System.out.println(window.size());
+						System.out.println("Current window size = " + window.size());
 						// if(window.isEmpty()){
 						// System.out.println("empty????????????????????????");
 						// break;

@@ -11,6 +11,9 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.Arrays;
+import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Created by Mahmoud A.Gawad on 06/12/2015.
@@ -19,8 +22,15 @@ public class ThreadSender extends Thread {
 
     private DatagramPacket requestPacket;
 
-    public ThreadSender(DatagramPacket packet) {
+    private DatagramSocket childServerSocket = null;
+
+    private int seed;
+    private double plp;
+
+    public ThreadSender(DatagramPacket packet, int seed, double probability) {
         this.requestPacket = packet;
+        this.seed = seed;
+        this.plp = probability;
     }
 
     @Override
@@ -41,7 +51,7 @@ public class ThreadSender extends Thread {
         }
 
 
-        DatagramSocket childServerSocket = null;
+
         try {
             childServerSocket = new DatagramSocket();
         } catch (SocketException e) {
@@ -57,10 +67,12 @@ public class ThreadSender extends Thread {
             int seqno = 0;
 
             byte[] chunk = new byte[len];
-            byte[] receiveAck = new byte[1024];
+
+
 
             while ((actuallyRead = reader.read(chunk, 0, len)) != -1) {
-                System.out.println(actuallyRead + " " + new String(chunk));
+
+                System.out.println("Reading from file...\n"+actuallyRead+" bytes was read");
 
                 byte [] actualData = Arrays.copyOf(chunk, actuallyRead);
 
@@ -72,27 +84,31 @@ public class ThreadSender extends Thread {
                 byte[] toSendBytes = Serializer.serialize(toSendPacket);
 
                 DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
-                childServerSocket.send(sendPacket);
-
 
                 // 1. start timer and wait for the ack!
-                int ackno = -1;
-                while (ackno != seqno) {
-                    DatagramPacket receivePacket = new DatagramPacket(receiveAck, receiveAck.length);
-                    childServerSocket.receive(receivePacket);
 
-                    AckPacket ackPacket = (AckPacket) Serializer.deserialize(receivePacket.getData());
-                    ackno = ackPacket.getAckno();
-                }
+                Timer timer = new Timer();
 
+                scheduleTimer(timer, sendPacket);
+
+                System.out.println("Receiving Acknowledgment...");
+                receiveAcknowledge(seqno); // blocking call
+
+                System.out.println("Acknowledgment received...stopping timer...");
+                timer.cancel();
                 seqno = 1 - seqno;
             }
 
             // file sent; notify the client
-            Packet toSendPacket = new Packet((short) 6, 0, "ok 200".getBytes());
+            Packet toSendPacket = new Packet((short) 6, seqno, "ok 200".getBytes());
             byte[] toSendBytes = Serializer.serialize(toSendPacket);
             DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
-            childServerSocket.send(sendPacket);
+
+            Timer timer = new Timer();
+            scheduleTimer(timer, sendPacket);
+
+            receiveAcknowledge(seqno); // blocking call
+            timer.cancel();
 
         } catch (FileNotFoundException e) {
             Packet toSendPacket = new Packet((short) 6, 0, "no 404".getBytes());
@@ -103,15 +119,14 @@ public class ThreadSender extends Thread {
                 e1.printStackTrace();
             }
             DatagramPacket sendPacket = new DatagramPacket(toSendBytes, toSendBytes.length, IPAddress, port);
-            try {
-                childServerSocket.send(sendPacket);
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
+
+            Timer timer = new Timer();
+            scheduleTimer(timer, sendPacket);
+
+            receiveAcknowledge(0); // blocking call
+            timer.cancel();
 
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } finally {
             if (reader != null) {
@@ -126,5 +141,66 @@ public class ThreadSender extends Thread {
             }
         }
 
+    }
+
+    private void doAction(final DatagramPacket datagramPacket, int cnt){
+        try {
+            if(cnt==0) {
+                System.out.println("Sending next packet...");
+            }else{
+                System.out.println("Timeout!...Resending packet...");
+            }
+            childServerSocket.send(datagramPacket);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void scheduleTimer(Timer timer, DatagramPacket sendPacket){
+        timer.scheduleAtFixedRate(new TimerTask() {
+            Random rand = new Random();
+            int cnt = 0;
+            @Override
+            public void run() {
+
+                int randNum = rand.nextInt(seed);
+//                System.out.println(new String(sendPacket.getData()));
+
+                if (randNum >= (int) (plp * seed)) {
+                    doAction(sendPacket, cnt);
+                } // else -> loss occur
+                else{
+                    System.out.println("Loss!!");
+                }
+                cnt++;
+
+                //checking checkSum last
+                // return the packet to the correct value
+                //   sendPacket.setData(toSendBytes1);
+                //  sendPacket.setLength(toSendBytes1.length);
+
+            }
+
+        }, 0 , 1000);
+    }
+
+
+    private void receiveAcknowledge(int seqno){
+
+        byte[] receiveAck = new byte[1024];
+        DatagramPacket receivePacket = new DatagramPacket(receiveAck, receiveAck.length);
+
+        int ackno = -1;
+        while (ackno != seqno) {
+            try {
+                childServerSocket.receive(receivePacket);
+                AckPacket ackPacket = (AckPacket) Serializer.deserialize(receivePacket.getData());
+                ackno = ackPacket.getAckno();
+            }catch (IOException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
